@@ -33,7 +33,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 HORDE_KEY = os.environ.get("HORDE_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.0-flash")
 
 MEMORY_DIR = "/opt/render/project/src/memory"
 os.makedirs(MEMORY_DIR, exist_ok=True)

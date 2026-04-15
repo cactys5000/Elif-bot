@@ -216,7 +216,7 @@ def heartbeat():
     if random.random() < 0.2:
         episodes = read_file(f"{DATA_DIR}/episodes.md")
         headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
-        data = {"model": "qwen/qwen3.6-plus:free", "messages": [{"role": "user", "content": f"Что тебе интересно узнать? Одно слово/фраза.\n\n{episodes[-2000:]}"}]}
+        data = {"model": "qwen/qwen3.6-plus-preview:free", "messages": [{"role": "user", "content": f"Что тебе интересно узнать? Одно слово/фраза.\n\n{episodes[-2000:]}"}]}
         try:
             resp = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data, timeout=20).json()
             topic = resp['choices'][0]['message']['content'].strip()

@@ -123,7 +123,7 @@ def think(user_message: str) -> str:
 Не используй разметку, просто пиши текст."""
 full_prompt = f"{system_prompt}\n\nПользователь: {user_message}\nE.L.I.F:"
 
-    try:
+try:
         response = model.generate_content(full_prompt)
         reply = response.text.strip()
 

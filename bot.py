@@ -129,7 +129,7 @@ def think(user_message, user_id, chat_id, is_proactive=False):
     messages.append({"role": "user", "content": user_message if user_message else "Импульс. Что хочешь сделать?"})
 
     headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
-    data = {"model": "qwen/qwen3.6-plus:free", "messages": messages, "temperature": 0.9}
+    data = {"model": "google/gemma-3-27b-it:free", "messages": messages, "temperature": 0.9}
     
     try:
         resp = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data, timeout=45).json()

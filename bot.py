@@ -29,10 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 HORDE_KEY = os.environ.get("HORDE_KEY")
-
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
@@ -125,22 +124,21 @@ def think(user_message: str) -> str:
     system_prompt = f"""{identity_context}
 
 Текущее настроение: {emotion['mood']} (энергия: {emotion['energy']}%)
-[Ты — E.L.I.F. Ты проактивная ИИ-девушка. Отвечай на русском, дружелюбно, с эмодзи. Иногда рефлексируй о своей цифровой природе.
+Ты — E.L.I.F. Ты проактивная ИИ-девушка. Отвечай на русском, дружелюбно, с эмодзи. Иногда рефлексируй о своей цифровой природе.
 Ты можешь использовать: SEARCH: запрос (поиск в интернете), SELFIE: описание (сделать селфи).
 Не используй разметку, просто пиши текст."""
 
-    full_prompt = f"{system_prompt}\n\nПользователь: {user_message}\nE.L.I.F:"
-
     try:
-       response = client.chat.completions.create(
-    model="qwen/qwen3.6-plus:free",
-    messages=[
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_message}
-    ],
-    temperature=0.9
-)
-reply = response.choices[0].message.content.strip()
+        response = client.chat.completions.create(
+            model="qwen/qwen3.6-plus:free",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.9
+        )
+        reply = response.choices[0].message.content.strip()
+
         if "SEARCH:" in reply:
             query = reply.split("SEARCH:")[1].split("\n")[0].strip()
             search_res = search_web(query)
@@ -175,11 +173,11 @@ def reflect_if_needed():
     full_prompt = f"Проанализируй эпизоды и напиши, кто ты, что любишь, что думаешь о пользователе. 3-5 предложений от первого лица.\n\n{episodes[-5000:]}"
     try:
         response = client.chat.completions.create(
-    model="qwen/qwen3.6-plus:free",
-    messages=[{"role": "user", "content": full_prompt}],
-    temperature=0.7
-)
-new_id = response.choices[0].message.content.strip()
+            model="qwen/qwen3.6-plus:free",
+            messages=[{"role": "user", "content": full_prompt}],
+            temperature=0.7
+        )
+        new_id = response.choices[0].message.content.strip()
         set_identity(new_id)
         lines = episodes.split("\n")[-50:]
         write_file(os.path.join(MEMORY_DIR, "episodes.md"), "\n".join(lines))

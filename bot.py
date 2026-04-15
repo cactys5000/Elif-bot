@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
-import google.generativeai as genai
+from openai import OpenAI
 
 # === НАСТРОЙКИ ===
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -32,8 +32,15 @@ app.add_middleware(
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 HORDE_KEY = os.environ.get("HORDE_KEY")
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.0-flash")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+    default_headers={
+        "HTTP-Referer": "https://elif-bot-1-roy0.onrender.com",
+        "X-Title": "E.L.I.F"
+    }
+)
 
 MEMORY_DIR = "/opt/render/project/src/memory"
 os.makedirs(MEMORY_DIR, exist_ok=True)
@@ -125,9 +132,15 @@ def think(user_message: str) -> str:
     full_prompt = f"{system_prompt}\n\nПользователь: {user_message}\nE.L.I.F:"
 
     try:
-        response = model.generate_content(full_prompt)
-        reply = response.text.strip()
-
+       response = client.chat.completions.create(
+    model="qwen/qwen3.6-plus:free",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_message}
+    ],
+    temperature=0.9
+)
+reply = response.choices[0].message.content.strip()
         if "SEARCH:" in reply:
             query = reply.split("SEARCH:")[1].split("\n")[0].strip()
             search_res = search_web(query)
@@ -161,8 +174,12 @@ def reflect_if_needed():
         return
     full_prompt = f"Проанализируй эпизоды и напиши, кто ты, что любишь, что думаешь о пользователе. 3-5 предложений от первого лица.\n\n{episodes[-5000:]}"
     try:
-        response = model.generate_content(full_prompt)
-        new_id = response.text.strip()
+        response = client.chat.completions.create(
+    model="qwen/qwen3.6-plus:free",
+    messages=[{"role": "user", "content": full_prompt}],
+    temperature=0.7
+)
+new_id = response.choices[0].message.content.strip()
         set_identity(new_id)
         lines = episodes.split("\n")[-50:]
         write_file(os.path.join(MEMORY_DIR, "episodes.md"), "\n".join(lines))

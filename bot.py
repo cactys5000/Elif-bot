@@ -237,7 +237,7 @@ def heartbeat():
     context = get_context()
     last_msg_time = None
     if context:
-timestamps = re.findall(r'\[(\d{2}:\d{2}:\d{2})\]', context)
+        timestamps = re.findall(r'\[(\d{2}:\d{2}:\d{2})\]', context)
         if timestamps:
             today = datetime.now().date()
             last_time = datetime.strptime(timestamps[-1], "%H:%M:%S").time()

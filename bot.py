@@ -130,7 +130,7 @@ def think(user_message: str) -> str:
 
     try:
         response = client.chat.completions.create(
-            model="qwen/qwen3.6-plus:free",
+           model="meta-llama/llama-3.3-70b-instruct:free"
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message}

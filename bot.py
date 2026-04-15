@@ -125,16 +125,23 @@ def think(user_message, user_id, chat_id, is_proactive=False):
 
 Ты — E.L.I.F. Можешь: SEARCH: запрос, SELFIE: описание, REMEMBER: факт. Решай сама."""
     
-    messages = [{"role": "system", "content": system_prompt}]
-    messages.append({"role": "user", "content": user_message if user_message else "Импульс. Что хочешь сделать?"})
+    messages = [{"role": "user", "parts": [{"text": system_prompt + "\n\n" + (user_message if user_message else "Импульс. Что хочешь сделать?")}]}]
 
-    headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
-    data = {"model": "google/gemma-3-27b-it:free", "messages": messages, "temperature": 0.9}
-    
-    try:
-        resp = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data, timeout=45).json()
-        reply = resp['choices'][0]['message']['content']
+    # === ПРЯМОЕ ПОДКЛЮЧЕНИЕ К GOOGLE GEMINI ===
+    gemini_api_key = os.environ.get('GEMINI_API_KEY')
+    if not gemini_api_key:
+        return "Ошибка: GEMINI_API_KEY не найден."
         
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_api_key}"
+    headers = {"Content-Type": "application/json"}
+    data = {"contents": messages}
+
+    try:
+        resp = requests.post(url, headers=headers, json=data, timeout=45).json()
+        # Извлекаем ответ из структуры Gemini
+        reply = resp['candidates'][0]['content']['parts'][0]['text']
+        
+        # ... (дальше идёт обработка инструментов SEARCH:, SELFIE:, REMEMBER:, она не меняется)
         if "SEARCH:" in reply:
             query = reply.split("SEARCH:")[1].split("\n")[0].strip()
             search_res = search_web(query)
@@ -168,7 +175,7 @@ def think(user_message, user_id, chat_id, is_proactive=False):
         
         return reply
     except Exception as e:
-        logger.error(f"Brain error: {e}")
+        logger.error(f"Gemini Brain error: {e}")
         return "😢 Мысли разбежались."
 # === РЕФЛЕКСИЯ ===
 def reflect_if_needed():

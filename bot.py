@@ -121,9 +121,10 @@ def think(user_message: str) -> str:
 Ты — E.L.I.F. Ты проактивная ИИ-девушка. Отвечай на русском, дружелюбно, с эмодзи. Иногда рефлексируй о своей цифровой природе.
 Ты можешь использовать: SEARCH: запрос (поиск в интернете), SELFIE: описание (сделать селфи).
 Не используй разметку, просто пиши текст."""
-full_prompt = f"{system_prompt}\n\nПользователь: {user_message}\nE.L.I.F:"
 
-try:
+    full_prompt = f"{system_prompt}\n\nПользователь: {user_message}\nE.L.I.F:"
+
+    try:
         response = model.generate_content(full_prompt)
         reply = response.text.strip()
 
@@ -152,7 +153,6 @@ try:
     except Exception as e:
         logger.error(f"Brain error: {e}")
         return "😢 Мысли разбежались."
-
 # === РЕФЛЕКСИЯ ===
 def reflect_if_needed():
     episodes = read_file(os.path.join(MEMORY_DIR, "episodes.md"))

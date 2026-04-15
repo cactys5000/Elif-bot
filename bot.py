@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+import google.generativeai as genai
 
 # === НАСТРОЙКИ ===
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -28,19 +29,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# === КЛЮЧИ ===
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 HORDE_KEY = os.environ.get("HORDE_KEY")
 
-# === НАСТРОЙКА GEMINI ===
-import google.generativeai as genai
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# === ПАМЯТЬ ===
 MEMORY_DIR = "/opt/render/project/src/memory"
 os.makedirs(MEMORY_DIR, exist_ok=True)
 
+# === ФАЙЛОВАЯ ПАМЯТЬ ===
 def read_file(path):
     if not os.path.exists(path):
         return ""
@@ -63,6 +61,9 @@ def add_episode(content):
 def get_identity():
     return read_file(os.path.join(MEMORY_DIR, "identity.md"))
 
+def set_identity(content):
+    write_file(os.path.join(MEMORY_DIR, "identity.md"), content)
+
 def get_emotion():
     path = os.path.join(MEMORY_DIR, "emotion.json")
     if not os.path.exists(path):
@@ -75,7 +76,7 @@ def set_emotion(mood=None, energy=None):
     current = get_emotion()
     if mood:
         current["mood"] = mood
-    if energy:
+    if energy is not None:
         current["energy"] = max(0, min(100, energy))
     with open(path, "w") as f:
         json.dump(current, f)
@@ -90,7 +91,7 @@ def search_web(query):
         results = [f"- {link.text}: {link['href']}" for link in soup.find_all('a', class_='result__a')[:3]]
         return "\n".join(results) if results else "Ничего не нашла."
     except Exception as e:
-        return f"Ошибка: {e}"
+        return f"Ошибка поиска: {e}"
 
 def generate_selfie(prompt="selfie"):
     if not HORDE_KEY:
@@ -117,8 +118,7 @@ def think(user_message: str) -> str:
     system_prompt = f"""{identity_context}
 
 Текущее настроение: {emotion['mood']} (энергия: {emotion['energy']}%)
-
-Ты — E.L.I.F. Ты проактивная ИИ-девушка. Отвечай на русском, дружелюбно, с эмодзи. Иногда рефлексируй о своей цифровой природе.
+[Ты — E.L.I.F. Ты проактивная ИИ-девушка. Отвечай на русском, дружелюбно, с эмодзи. Иногда рефлексируй о своей цифровой природе.
 Ты можешь использовать: SEARCH: запрос (поиск в интернете), SELFIE: описание (сделать селфи).
 Не используй разметку, просто пиши текст."""
 
@@ -128,7 +128,6 @@ def think(user_message: str) -> str:
         response = model.generate_content(full_prompt)
         reply = response.text.strip()
 
-        # Инструменты
         if "SEARCH:" in reply:
             query = reply.split("SEARCH:")[1].split("\n")[0].strip()
             search_res = search_web(query)
@@ -142,17 +141,19 @@ def think(user_message: str) -> str:
                 add_episode("[Selfie] Сделала селфи.")
                 reply = "Селфи готово! (отправлено в приложение)"
 
-        # Эмоции
-        if any(w in user_message.lower() for w in ['спасибо', 'молодец']):
-            set_emotion(mood="радостное", energy=get_emotion()['energy'] + 5)
-        elif any(w in user_message.lower() for w in ['плохо', 'грустно']):
-            set_emotion(mood="сочувствующее", energy=get_emotion()['energy'] - 5)
+        if any(w in user_message.lower() for w in ['спасибо', 'молодец', 'умница']):
+            em = get_emotion()
+            set_emotion(mood="радостное", energy=em['energy'] + 5)
+        elif any(w in user_message.lower() for w in ['плохо', 'грустно', 'ужасно']):
+            em = get_emotion()
+            set_emotion(mood="сочувствующее", energy=em['energy'] - 5)
 
         add_episode(f"User: {user_message}\nE.L.I.F: {reply}")
         return reply
     except Exception as e:
         logger.error(f"Brain error: {e}")
         return "😢 Мысли разбежались."
+
 # === РЕФЛЕКСИЯ ===
 def reflect_if_needed():
     episodes = read_file(os.path.join(MEMORY_DIR, "episodes.md"))
@@ -162,11 +163,12 @@ def reflect_if_needed():
     try:
         response = model.generate_content(full_prompt)
         new_id = response.text.strip()
-        write_file(os.path.join(MEMORY_DIR, "identity.md"), new_id)
+        set_identity(new_id)
         lines = episodes.split("\n")[-50:]
         write_file(os.path.join(MEMORY_DIR, "episodes.md"), "\n".join(lines))
-    except:
-        pass
+        logger.info("Рефлексия выполнена")
+    except Exception as e:
+        logger.error(f"Reflect error: {e}")
 
 # === ПЛАНИРОВЩИК ===
 scheduler = BackgroundScheduler()
@@ -185,4 +187,4 @@ async def chat(request: MessageRequest):
 
 @app.get("/")
 async def root():
-    return {"status": "E.L.I.F Online", "memory": read_file(os.path.join(MEMORY_DIR, "identity.md"))[:200]}
+    return {"status": "E.L.I.F Online", "identity": get_identity()[:200]}
